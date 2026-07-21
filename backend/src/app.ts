@@ -11,6 +11,8 @@ import { groupsRouter } from "./modules/groups/groups.routes";
 import { expensesRouter } from "./modules/expenses/expenses.routes";
 import { settlementsRouter } from "./modules/settlements/settlements.routes";
 import { apiRateLimiter } from "./middleware/rateLimiter";
+import { prisma } from "./config/db";
+import { redis } from "./config/redis";
 
 export function createApp() {
   const app = express();
@@ -56,8 +58,27 @@ export function createApp() {
   app.use(express.urlencoded({ extended: false, limit: "100kb" }));
   app.use(passport.initialize());
 
+  // Liveness: process is up. Deliberately does not touch the DB/Redis -
+  // an orchestrator restarting the container on every transient DB blip
+  // would cause more downtime than it prevents.
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Readiness: are the actual dependencies this app needs reachable?
+  // Useful for load balancers / deploy scripts deciding whether to route
+  // traffic to this instance yet, separate from "is the process alive."
+  app.get("/api/health/ready", async (_req, res) => {
+    const [dbOk, redisOk] = await Promise.all([
+      // A real (if trivial) model query rather than a raw SQL ping - stays
+      // consistent with the rest of the codebase never touching $queryRaw,
+      // and incidentally also confirms migrations were actually applied.
+      prisma.user.count().then(() => true).catch(() => false),
+      redis.ping().then(() => true).catch(() => false),
+    ]);
+
+    const ready = dbOk && redisOk;
+    res.status(ready ? 200 : 503).json({ status: ready ? "ready" : "not_ready", db: dbOk, redis: redisOk });
   });
 
   // Feature routers are mounted here incrementally as each module is built
