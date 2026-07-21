@@ -14,7 +14,7 @@ export async function listExpenses(req: Request, res: Response) {
 }
 
 export async function getExpense(req: Request, res: Response) {
-  const expense = await expensesService.getExpense(req.params.expenseId);
+  const expense = await expensesService.getExpense(req.params.groupId, req.params.expenseId);
   res.json(expense);
 }
 

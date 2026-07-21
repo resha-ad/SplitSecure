@@ -42,12 +42,16 @@ export async function listGroupExpenses(groupId: string) {
   });
 }
 
-export async function getExpense(expenseId: string) {
+export async function getExpense(groupId: string, expenseId: string) {
   const expense = await prisma.expense.findUnique({
     where: { id: expenseId },
     include: { splits: true, paidBy: { select: { id: true, displayName: true } } },
   });
-  if (!expense) {
+  // the RBAC middleware only proves the caller belongs to :groupId - it
+  // says nothing about whether *this* expense belongs to that group.
+  // without this check, any member of any group could read another
+  // group's expenses just by knowing/guessing the expense ID.
+  if (!expense || expense.groupId !== groupId) {
     throw new AppError(404, "expense_not_found");
   }
   return expense;
