@@ -36,4 +36,24 @@ describe("registerSchema", () => {
       }).success
     ).toBe(false);
   });
+
+  it("rejects a password built from the account's own email", () => {
+    expect(
+      registerSchema.safeParse({
+        email: "alice@example.com",
+        password: "Alice-Is-Cool9!",
+        displayName: "Alice",
+      }).success
+    ).toBe(false);
+  });
+
+  it("accepts a strong password unrelated to the email", () => {
+    expect(
+      registerSchema.safeParse({
+        email: "alice@example.com",
+        password: "C0rrect-Horse-Battery9",
+        displayName: "Alice",
+      }).success
+    ).toBe(true);
+  });
 });

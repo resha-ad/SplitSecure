@@ -22,11 +22,20 @@ export const passwordSchema = z
     message: "This password is too common - choose something less guessable",
   });
 
-export const registerSchema = z.object({
-  email: z.string().trim().toLowerCase().email().max(254),
-  password: passwordSchema,
-  displayName: z.string().trim().min(1).max(60),
-});
+export const registerSchema = z
+  .object({
+    email: z.string().trim().toLowerCase().email().max(254),
+    password: passwordSchema,
+    displayName: z.string().trim().min(1).max(60),
+  })
+  // Cross-field check: complexity rules alone don't stop "Alice@2026!" for
+  // alice@example.com - a password built from your own email/name is
+  // exactly the kind of "technically complex, trivially guessable" pattern
+  // per-field regex rules can't catch.
+  .refine((data) => !data.password.toLowerCase().includes(data.email.split("@")[0].toLowerCase()), {
+    message: "Password must not contain your email address",
+    path: ["password"],
+  });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
 export const loginSchema = z.object({
