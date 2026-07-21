@@ -1,0 +1,177 @@
+generator client {
+  provider      = "prisma-client-js"
+  // "native" covers local dev (Windows/Mac/Linux glibc); the musl target
+  // is what's actually needed inside the Alpine-based Docker images.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GroupRole {
+  ADMIN
+  MEMBER
+}
+
+enum SettlementStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum SettlementMethod {
+  INTERNAL
+  STRIPE
+}
+
+// A registered user. Note: there is deliberately no global "role" field here.
+// Authorization is always evaluated per-group via GroupMember, so a stolen or
+// forged claim of "admin" in a JWT means nothing without a matching DB row -
+// every privileged action re-checks membership server-side (see rbac.ts).
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  displayName         String
+  totpSecretEnc       String?
+  totpEnabled         Boolean   @default(false)
+  googleId            String?   @unique
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  memberships   GroupMember[]
+  expensesPaid  Expense[]      @relation("PaidBy")
+  expenseSplits ExpenseSplit[]
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+  settlementsFrom Settlement[] @relation("SettlementFrom")
+  settlementsTo   Settlement[] @relation("SettlementTo")
+
+  @@map("users")
+}
+
+// Refresh tokens are stored hashed (never plaintext) so a DB read alone
+// cannot be replayed as a session. userAgentHash supports optional device
+// binding - a refresh presented from a wildly different UA can be rejected.
+model RefreshToken {
+  id            String   @id @default(uuid())
+  userId        String
+  tokenHash     String   @unique
+  userAgentHash String?
+  expiresAt     DateTime
+  revoked       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+  @@index([userId])
+}
+
+model Group {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  members     GroupMember[]
+  expenses    Expense[]
+  settlements Settlement[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id       String    @id @default(uuid())
+  groupId  String
+  userId   String
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model Expense {
+  id           String   @id @default(uuid())
+  groupId      String
+  paidById     String
+  description  String
+  amountCents  Int
+  currency     String   @default("GBP")
+  receiptEnc   String?
+  receiptIv    String?
+  receiptTag   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  group  Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  paidBy User           @relation("PaidBy", fields: [paidById], references: [id])
+  splits ExpenseSplit[]
+
+  @@map("expenses")
+  @@index([groupId])
+}
+
+model ExpenseSplit {
+  id         String @id @default(uuid())
+  expenseId  String
+  userId     String
+  shareCents Int
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([expenseId, userId])
+  @@map("expense_splits")
+}
+
+// version supports optimistic concurrency control - a settle request must
+// supply the version it read; a concurrent settle that already bumped the
+// version is rejected, preventing the double-spend race condition we track
+// as one of the deliberately-fixed vulnerabilities for the report.
+model Settlement {
+  id                    String            @id @default(uuid())
+  groupId               String
+  fromUserId            String
+  toUserId              String
+  amountCents           Int
+  status                SettlementStatus  @default(PENDING)
+  method                SettlementMethod  @default(INTERNAL)
+  stripePaymentIntentId String?           @unique
+  idempotencyKey        String            @unique
+  version               Int               @default(0)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  group    Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fromUser User  @relation("SettlementFrom", fields: [fromUserId], references: [id])
+  toUser   User  @relation("SettlementTo", fields: [toUserId], references: [id])
+
+  @@map("settlements")
+  @@index([groupId])
+}
+
+// Deliberately narrow: action + target identifiers only, never request
+// bodies or amounts-in-context that could leak into logs. See utils/audit.ts.
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  targetType String?
+  targetId   String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+  @@index([userId])
+  @@index([createdAt])
+}
