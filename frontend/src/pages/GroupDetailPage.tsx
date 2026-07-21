@@ -138,8 +138,11 @@ function ExpensesTab({
         {expenses.map((exp) => (
           <div key={exp.id} className="expense-row">
             <div>
-              {/* eslint-disable-next-line react/no-danger */}
-              <div dangerouslySetInnerHTML={{ __html: exp.description }} />
+              {/* was dangerouslySetInnerHTML, allowing stored XSS via the
+                  description field. React's default text-node rendering
+                  escapes it - no sanitizer needed since rich text was
+                  never a real requirement here. */}
+              <div>{exp.description}</div>
               <span className="hint">Paid by {exp.paidBy.displayName}</span>
             </div>
             <div style={{ textAlign: "right" }}>
