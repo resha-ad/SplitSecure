@@ -10,3 +10,4 @@ backend/prisma/migrations/dev.db
 *.sqlite
 .vscode/
 docker-data/
+docs/
