@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db";
+import { UpdateProfileInput } from "./users.schema";
 
 export async function getProfile(userId: string) {
   return prisma.user.findUniqueOrThrow({
@@ -13,10 +14,12 @@ export async function getProfile(userId: string) {
   });
 }
 
-export async function updateProfile(userId: string, body: Record<string, unknown>) {
+export async function updateProfile(userId: string, input: UpdateProfileInput) {
+  // typed to the exact allow-listed shape from users.schema.ts - no way to
+  // pass this function an arbitrary field, by construction.
   return prisma.user.update({
     where: { id: userId },
-    data: body,
+    data: { displayName: input.displayName },
     select: {
       id: true,
       email: true,
