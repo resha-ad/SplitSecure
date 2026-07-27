@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+// NPR 10.00 - a sensible floor to stop trivial/placeholder entries (also
+// keeps percentage-split rounding well clear of the "shares don't sum to
+// the total because of an absurdly tiny amount" edge case).
+export const MIN_EXPENSE_AMOUNT_CENTS = 1000;
+
 const splitSchema = z.object({
   userId: z.string().uuid(),
   shareCents: z.number().int().positive(),
@@ -8,7 +13,7 @@ const splitSchema = z.object({
 export const createExpenseSchema = z
   .object({
     description: z.string().trim().min(1).max(200),
-    amountCents: z.number().int().positive(),
+    amountCents: z.number().int().min(MIN_EXPENSE_AMOUNT_CENTS, "Amount must be at least NPR 10.00"),
     currency: z.string().length(3).default("NPR"),
     splits: z.array(splitSchema).min(1).max(50),
   })
