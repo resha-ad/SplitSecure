@@ -123,7 +123,7 @@ model Expense {
   paidById     String
   description  String
   amountCents  Int
-  currency     String   @default("GBP")
+  currency     String   @default("NPR")
   receiptEnc   String?
   receiptIv    String?
   receiptTag   String?

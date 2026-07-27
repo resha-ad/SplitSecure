@@ -8,8 +8,8 @@ import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 type Tab = "expenses" | "balances" | "members";
 
-function formatMoney(cents: number, currency = "GBP") {
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(cents / 100);
+function formatMoney(cents: number, currency = "NPR") {
+  return new Intl.NumberFormat("en-NP", { style: "currency", currency }).format(cents / 100);
 }
 
 function initials(name: string) {
@@ -104,7 +104,7 @@ function ExpensesTab({
     const remainder = amountCents - base * selected.length;
     const splits = selected.map((userId, i) => ({ userId, shareCents: base + (i < remainder ? 1 : 0) }));
 
-    await expensesApi.create(groupId, { description: description.trim(), amountCents, currency: "GBP", splits });
+    await expensesApi.create(groupId, { description: description.trim(), amountCents, currency: "NPR", splits });
     setDescription("");
     setAmount("");
     await onChanged();
@@ -125,7 +125,7 @@ function ExpensesTab({
             <input id="description" required value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
           <div className="form-field">
-            <label htmlFor="amount">Amount (GBP)</label>
+            <label htmlFor="amount">Amount (NPR)</label>
             <input id="amount" type="number" step="0.01" min="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
           <div className="form-field">

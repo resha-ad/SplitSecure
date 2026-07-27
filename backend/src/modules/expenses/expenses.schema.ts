@@ -9,7 +9,7 @@ export const createExpenseSchema = z
   .object({
     description: z.string().trim().min(1).max(200),
     amountCents: z.number().int().positive(),
-    currency: z.string().length(3).default("GBP"),
+    currency: z.string().length(3).default("NPR"),
     splits: z.array(splitSchema).min(1).max(50),
   })
   .refine((data) => data.splits.reduce((sum, s) => sum + s.shareCents, 0) === data.amountCents, {
