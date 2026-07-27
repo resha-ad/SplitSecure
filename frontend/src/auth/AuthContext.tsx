@@ -7,6 +7,8 @@ import type { UserProfile } from "../api/types";
 interface AuthState {
   user: UserProfile | null;
   loading: boolean;
+  passwordExpired: boolean;
+  dismissPasswordExpiredNotice: () => void;
   login: (email: string, password: string, captchaToken?: string) => Promise<{ mfaRequired: boolean; mfaTicket?: string }>;
   loginTotp: (mfaTicket: string, code: string) => Promise<void>;
   register: (email: string, password: string, displayName: string, captchaToken?: string) => Promise<void>;
@@ -19,6 +21,7 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordExpired, setPasswordExpired] = useState(false);
 
   const refreshProfile = useCallback(async () => {
     const profile = await usersApi.me();
@@ -49,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await authApi.login(email, password, captchaToken);
     if (!result.mfaRequired && result.accessToken) {
       setAccessToken(result.accessToken);
+      setPasswordExpired(Boolean(result.passwordExpired));
       await refreshProfile();
     }
     return { mfaRequired: result.mfaRequired, mfaTicket: result.mfaTicket };
@@ -57,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginTotp = useCallback(async (mfaTicket: string, code: string) => {
     const result = await authApi.loginTotp(mfaTicket, code);
     setAccessToken(result.accessToken);
+    setPasswordExpired(Boolean(result.passwordExpired));
     await refreshProfile();
   }, [refreshProfile]);
 
@@ -72,8 +77,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const dismissPasswordExpiredNotice = useCallback(() => setPasswordExpired(false), []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginTotp, register, logout, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        passwordExpired,
+        dismissPasswordExpiredNotice,
+        login,
+        loginTotp,
+        register,
+        logout,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
