@@ -14,6 +14,7 @@ import {
 import { AppError } from "../../middleware/errorHandler";
 import { RegisterInput, ChangePasswordInput } from "./auth.schema";
 import { recordAudit } from "../../utils/audit";
+import { recordFailedAuthAttempt } from "../../middleware/ipAccessControl";
 
 const REFRESH_TOKEN_TTL_DAYS = 30;
 
@@ -68,6 +69,11 @@ export async function loginStepPassword(
       "$argon2id$v=19$m=65536,t=3,p=1$c29tZXNhbHQ$AAAAAAAAAAAAAAAAAAAAAA",
       password
     );
+    // Tracked by IP regardless of account existence - this is exactly the
+    // credential-stuffing pattern (many emails, one attacker) that
+    // per-account lockout below can't see, since each individual email
+    // here might only be tried once or twice.
+    await recordFailedAuthAttempt(ip);
     throw new AppError(401, "invalid_credentials");
   }
 
@@ -93,6 +99,7 @@ export async function loginStepPassword(
     });
 
     await recordAudit({ userId: user.id, action: "auth.login_failed", targetType: "User", targetId: user.id, ip });
+    await recordFailedAuthAttempt(ip);
     throw new AppError(401, "invalid_credentials");
   }
 
