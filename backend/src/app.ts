@@ -11,6 +11,8 @@ import { groupsRouter } from "./modules/groups/groups.routes";
 import { expensesRouter } from "./modules/expenses/expenses.routes";
 import { settlementsRouter } from "./modules/settlements/settlements.routes";
 import { apiRateLimiter } from "./middleware/rateLimiter";
+import { ipAccessControl } from "./middleware/ipAccessControl";
+import { asyncHandler } from "./middleware/asyncHandler";
 import { prisma } from "./config/db";
 import { redis } from "./config/redis";
 
@@ -20,6 +22,11 @@ export function createApp() {
   // Trust the first proxy hop (needed for correct req.ip behind
   // nginx/Docker, which the rate limiter and audit log rely on).
   app.set("trust proxy", 1);
+
+  // IP blocking/allow-listing runs before anything else - a blocked IP
+  // shouldn't burn CPU on CSP headers, body parsing, etc. Sits alongside
+  // (not instead of) the per-account rate limiting/lockout below.
+  app.use(asyncHandler(ipAccessControl));
 
   // Strict CSP: no inline scripts, no third-party script origins beyond
   // Google (OAuth) and Stripe (checkout.js), object-src none to block
