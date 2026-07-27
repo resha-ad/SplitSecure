@@ -33,9 +33,13 @@ export function TotpVerifyPage() {
   }
 
   return (
-    <div className="app-shell" style={{ maxWidth: 420, marginTop: 60 }}>
+    <div className="auth-shell">
+      <span className="brand-mark" aria-hidden="true" style={{ marginBottom: 12 }}>S</span>
       <h1>Enter your authenticator code</h1>
       <div className="card">
+        <p className="hint" style={{ marginBottom: 14 }}>
+          Open your authenticator app and enter the 6-digit code to finish signing in.
+        </p>
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={onSubmit}>
           <div className="form-field">

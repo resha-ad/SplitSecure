@@ -43,7 +43,8 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="app-shell" style={{ maxWidth: 420, marginTop: 60 }}>
+    <div className="auth-shell">
+      <span className="brand-mark" aria-hidden="true" style={{ marginBottom: 12 }}>S</span>
       <h1>Create account</h1>
       <div className="card">
         {error && <div className="error-banner">{error}</div>}

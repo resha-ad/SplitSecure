@@ -12,5 +12,9 @@ export function OAuthCallbackPage() {
     }
   }, [loading, user, navigate]);
 
-  return <div className="app-shell">Signing you in...</div>;
+  return (
+    <div className="auth-shell">
+      <p className="hint"><span className="spinner" aria-hidden="true" /> Signing you in...</p>
+    </div>
+  );
 }
