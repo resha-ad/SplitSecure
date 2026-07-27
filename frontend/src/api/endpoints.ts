@@ -43,6 +43,9 @@ export const usersApi = {
   me: () => apiFetch<UserProfile>("/api/users/me"),
   updateMe: (displayName: string) =>
     apiFetch<UserProfile>("/api/users/me", { method: "PATCH", body: JSON.stringify({ displayName }) }),
+  exportData: () => apiFetch<Record<string, unknown>>("/api/users/me/export"),
+  importData: (bundle: unknown) =>
+    apiFetch<UserProfile>("/api/users/me/import", { method: "POST", body: JSON.stringify(bundle) }),
 };
 
 export const groupsApi = {
