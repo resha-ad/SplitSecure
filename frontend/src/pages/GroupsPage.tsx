@@ -42,15 +42,20 @@ export function GroupsPage() {
       </div>
 
       {loading ? (
-        <p>Loading...</p>
+        <p className="hint"><span className="spinner" aria-hidden="true" /> Loading your groups...</p>
       ) : groups.length === 0 ? (
-        <p className="hint">You're not in any groups yet - create one above.</p>
+        <div className="empty-state">
+          <p>You're not in any groups yet.</p>
+          <p className="hint">Create one above to start splitting expenses with people you trust.</p>
+        </div>
       ) : (
         groups.map((g) => (
-          <Link key={g.id} to={`/groups/${g.id}`} style={{ textDecoration: "none" }}>
+          <Link key={g.id} to={`/groups/${g.id}`} className="clickable-card">
             <div className="card">
-              <h3>{g.name}</h3>
-              <p className="hint">{g.members.length} member{g.members.length === 1 ? "" : "s"}</p>
+              <h3 style={{ margin: 0 }}>{g.name}</h3>
+              <p className="hint" style={{ marginTop: 4 }}>
+                {g.members.length} member{g.members.length === 1 ? "" : "s"}
+              </p>
             </div>
           </Link>
         ))
