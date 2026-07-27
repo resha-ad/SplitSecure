@@ -19,6 +19,12 @@ function sendSession(res: Response, session: { accessToken: string; refreshToken
 
 export async function register(req: Request, res: Response) {
   const input = registerSchema.parse(req.body);
+
+  const captchaOk = await verifyCaptcha(input.captchaToken);
+  if (!captchaOk) {
+    throw new AppError(400, "captcha_verification_failed");
+  }
+
   const user = await authService.registerUser(input);
   const session = await authService.issueSession(user.id, req.header("user-agent"));
   sendSession(res, session);

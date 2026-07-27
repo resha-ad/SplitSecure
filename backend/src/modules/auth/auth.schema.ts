@@ -27,6 +27,7 @@ export const registerSchema = z
     email: z.string().trim().toLowerCase().email().max(254),
     password: passwordSchema,
     displayName: z.string().trim().min(1).max(60),
+    captchaToken: z.string().optional(),
   })
   // Cross-field check: complexity rules alone don't stop "Alice@2026!" for
   // alice@example.com - a password built from your own email/name is
