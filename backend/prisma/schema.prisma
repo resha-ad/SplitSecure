@@ -40,18 +40,37 @@ model User {
   googleId            String?   @unique
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
+  passwordChangedAt   DateTime  @default(now())
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  memberships   GroupMember[]
-  expensesPaid  Expense[]      @relation("PaidBy")
-  expenseSplits ExpenseSplit[]
-  auditLogs     AuditLog[]
-  refreshTokens RefreshToken[]
+  memberships     GroupMember[]
+  expensesPaid    Expense[]      @relation("PaidBy")
+  expenseSplits   ExpenseSplit[]
+  auditLogs       AuditLog[]
+  refreshTokens   RefreshToken[]
+  passwordHistory PasswordHistory[]
   settlementsFrom Settlement[] @relation("SettlementFrom")
   settlementsTo   Settlement[] @relation("SettlementTo")
 
   @@map("users")
+}
+
+// Last-N password hashes, kept solely to enforce reuse prevention on the
+// next change - never used for anything else (not for recovery, not
+// readable in any UI). Capped at a small N by the application layer, not
+// the schema, since "how many to keep" is a policy decision, not a data
+// modelling one.
+model PasswordHistory {
+  id           String   @id @default(uuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_history")
+  @@index([userId])
 }
 
 // Refresh tokens are stored hashed (never plaintext) so a DB read alone
