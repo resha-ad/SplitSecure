@@ -40,4 +40,10 @@ export const env = {
 
   passwordExpiryDays: Number(process.env.PASSWORD_EXPIRY_DAYS ?? 90),
   passwordHistoryCount: Number(process.env.PASSWORD_HISTORY_COUNT ?? 5),
+
+  ipBlocklist: (process.env.IP_BLOCKLIST ?? "").split(",").map((ip) => ip.trim()).filter(Boolean),
+  ipAllowlist: (process.env.IP_ALLOWLIST ?? "").split(",").map((ip) => ip.trim()).filter(Boolean),
+  ipAutoBlockThreshold: Number(process.env.IP_AUTO_BLOCK_THRESHOLD ?? 30),
+  ipAutoBlockWindowSeconds: Number(process.env.IP_AUTO_BLOCK_WINDOW_SECONDS ?? 900),
+  ipAutoBlockDurationSeconds: Number(process.env.IP_AUTO_BLOCK_DURATION_SECONDS ?? 3600),
 };
