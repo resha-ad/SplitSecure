@@ -2,6 +2,7 @@
  * Integration test - requires a real Postgres reachable via DATABASE_URL
  * (see .github/workflows/ci.yml for the CI service container).
  */
+import crypto from "crypto";
 import { prisma } from "../../config/db";
 import { hashPassword } from "../../utils/password";
 import { changePassword, registerUser } from "./auth.service";
@@ -10,17 +11,23 @@ import { AppError } from "../../middleware/errorHandler";
 const STRONG_PASSWORD = "Correct-Horse-Battery9!";
 const STRONG_PASSWORD_2 = "Different-Battery-Staple7!";
 
+// crypto.randomUUID() rather than Date.now() - guarantees uniqueness even
+// if this file runs twice in close succession against the same DB.
+function uniqueEmail(prefix: string): string {
+  return `${prefix}-${crypto.randomUUID()}@test.local`;
+}
+
 describe("changePassword (integration)", () => {
   afterAll(async () => {
     await prisma.$disconnect();
   });
 
   it("changes the password and revokes existing sessions", async () => {
-    const email = `pwtest-${Date.now()}@test.local`;
+    const email = uniqueEmail("pwtest");
     const user = await registerUser({ email, password: STRONG_PASSWORD, displayName: "PW Test" });
 
     await prisma.refreshToken.create({
-      data: { userId: user.id, tokenHash: "irrelevant-hash-1", expiresAt: new Date(Date.now() + 100000) },
+      data: { userId: user.id, tokenHash: crypto.randomUUID(), expiresAt: new Date(Date.now() + 100000) },
     });
 
     await changePassword(user.id, { currentPassword: STRONG_PASSWORD, newPassword: STRONG_PASSWORD_2 });
@@ -33,7 +40,7 @@ describe("changePassword (integration)", () => {
   });
 
   it("rejects the wrong current password", async () => {
-    const email = `pwtest2-${Date.now()}@test.local`;
+    const email = uniqueEmail("pwtest2");
     const user = await registerUser({ email, password: STRONG_PASSWORD, displayName: "PW Test 2" });
 
     await expect(
@@ -42,7 +49,7 @@ describe("changePassword (integration)", () => {
   });
 
   it("rejects reusing the current password as the new one", async () => {
-    const email = `pwtest3-${Date.now()}@test.local`;
+    const email = uniqueEmail("pwtest3");
     const user = await registerUser({ email, password: STRONG_PASSWORD, displayName: "PW Test 3" });
 
     await expect(
@@ -51,7 +58,7 @@ describe("changePassword (integration)", () => {
   });
 
   it("rejects reusing a password found in history after multiple changes", async () => {
-    const email = `pwtest4-${Date.now()}@test.local`;
+    const email = uniqueEmail("pwtest4");
     const user = await registerUser({ email, password: STRONG_PASSWORD, displayName: "PW Test 4" });
 
     await changePassword(user.id, { currentPassword: STRONG_PASSWORD, newPassword: STRONG_PASSWORD_2 });
@@ -64,7 +71,7 @@ describe("changePassword (integration)", () => {
   });
 
   it("allows a genuinely new password unrelated to history", async () => {
-    const email = `pwtest5-${Date.now()}@test.local`;
+    const email = uniqueEmail("pwtest5");
     const user = await registerUser({ email, password: STRONG_PASSWORD, displayName: "PW Test 5" });
 
     await expect(
