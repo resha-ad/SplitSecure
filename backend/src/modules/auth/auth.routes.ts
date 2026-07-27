@@ -33,6 +33,13 @@ authRouter.post(
   verifyCsrf,
   asyncHandler(controller.totpConfirm)
 );
+authRouter.post(
+  "/change-password",
+  requireAuth,
+  sensitiveActionRateLimiter,
+  verifyCsrf,
+  asyncHandler(controller.changePassword)
+);
 
 // --- Google OAuth ---------------------------------------------------------
 // session: false because we issue our own JWT/refresh-cookie session

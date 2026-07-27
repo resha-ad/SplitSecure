@@ -4,6 +4,7 @@ import {
   loginSchema,
   totpVerifySchema,
   totpSetupConfirmSchema,
+  changePasswordSchema,
 } from "./auth.schema";
 import * as authService from "./auth.service";
 import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE } from "./cookies";
@@ -11,10 +12,13 @@ import { issueCsrfCookie } from "../../middleware/csrf";
 import { verifyCaptcha } from "../../utils/captcha";
 import { AppError } from "../../middleware/errorHandler";
 
-function sendSession(res: Response, session: { accessToken: string; refreshToken: string }) {
+function sendSession(
+  res: Response,
+  session: { accessToken: string; refreshToken: string; passwordExpired?: boolean }
+) {
   setRefreshCookie(res, session.refreshToken);
   issueCsrfCookie(res);
-  res.json({ accessToken: session.accessToken });
+  res.json({ accessToken: session.accessToken, passwordExpired: session.passwordExpired ?? false });
 }
 
 export async function register(req: Request, res: Response) {
@@ -89,5 +93,12 @@ export async function totpSetup(req: Request, res: Response) {
 export async function totpConfirm(req: Request, res: Response) {
   const input = totpSetupConfirmSchema.parse(req.body);
   await authService.confirmTotpSetup(req.userId!, input.code);
+  res.status(204).send();
+}
+
+export async function changePassword(req: Request, res: Response) {
+  const input = changePasswordSchema.parse(req.body);
+  await authService.changePassword(req.userId!, input);
+  clearRefreshCookie(res);
   res.status(204).send();
 }
