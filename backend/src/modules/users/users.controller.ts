@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { updateProfileSchema } from "./users.schema";
+import { updateProfileSchema, importDataSchema } from "./users.schema";
 import * as usersService from "./users.service";
 
 export async function me(req: Request, res: Response) {
@@ -15,5 +15,17 @@ export async function updateMe(req: Request, res: Response) {
   // Prisma's schema-valid-but-unrestricted update().
   const input = updateProfileSchema.parse(req.body);
   const profile = await usersService.updateProfile(req.userId!, input);
+  res.json(profile);
+}
+
+export async function exportData(req: Request, res: Response) {
+  const bundle = await usersService.exportUserData(req.userId!);
+  res.setHeader("Content-Disposition", "attachment; filename=\"splitsecure-export.json\"");
+  res.json(bundle);
+}
+
+export async function importData(req: Request, res: Response) {
+  const input = importDataSchema.parse(req.body);
+  const profile = await usersService.importUserData(req.userId!, input);
   res.json(profile);
 }
