@@ -9,7 +9,7 @@ interface AuthState {
   loading: boolean;
   login: (email: string, password: string, captchaToken?: string) => Promise<{ mfaRequired: boolean; mfaTicket?: string }>;
   loginTotp: (mfaTicket: string, code: string) => Promise<void>;
-  register: (email: string, password: string, displayName: string) => Promise<void>;
+  register: (email: string, password: string, displayName: string, captchaToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -60,8 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refreshProfile();
   }, [refreshProfile]);
 
-  const register = useCallback(async (email: string, password: string, displayName: string) => {
-    const result = await authApi.register(email, password, displayName);
+  const register = useCallback(async (email: string, password: string, displayName: string, captchaToken?: string) => {
+    const result = await authApi.register(email, password, displayName, captchaToken);
     setAccessToken(result.accessToken);
     await refreshProfile();
   }, [refreshProfile]);

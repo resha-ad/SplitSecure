@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/client";
+import { Captcha } from "../components/Captcha";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
@@ -11,15 +12,22 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, captchaToken);
       if (result.mfaRequired && result.mfaTicket) {
         navigate("/login/totp", { state: { mfaTicket: result.mfaTicket } });
       } else {
@@ -55,6 +63,9 @@ export function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+          </div>
+          <div className="form-field">
+            <Captcha onToken={setCaptchaToken} />
           </div>
           <button type="submit" disabled={submitting}>
             {submitting ? "Signing in..." : "Sign in"}

@@ -8,10 +8,10 @@ interface LoginResult {
 }
 
 export const authApi = {
-  register: (email: string, password: string, displayName: string) =>
+  register: (email: string, password: string, displayName: string, captchaToken?: string) =>
     apiFetch<{ accessToken: string }>("/api/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password, displayName }),
+      body: JSON.stringify({ email, password, displayName, captchaToken }),
     }),
 
   login: (email: string, password: string, captchaToken?: string) =>
