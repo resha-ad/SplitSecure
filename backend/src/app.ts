@@ -30,11 +30,22 @@ export function createApp() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "https://js.stripe.com", "https://accounts.google.com"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: [
+            "'self'",
+            "https://js.stripe.com",
+            "https://accounts.google.com",
+            "https://js.hcaptcha.com",
+            "https://*.hcaptcha.com",
+          ],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://*.hcaptcha.com"],
           imgSrc: ["'self'", "data:"],
-          connectSrc: ["'self'", env.frontendUrl],
-          frameSrc: ["https://js.stripe.com", "https://accounts.google.com"],
+          connectSrc: ["'self'", env.frontendUrl, "https://*.hcaptcha.com"],
+          frameSrc: [
+            "https://js.stripe.com",
+            "https://accounts.google.com",
+            "https://*.hcaptcha.com",
+            "https://newassets.hcaptcha.com",
+          ],
           objectSrc: ["'none'"],
           baseUri: ["'self'"],
           formAction: ["'self'"],
