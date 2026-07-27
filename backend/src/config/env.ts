@@ -36,7 +36,7 @@ export const env = {
   loginMaxAttempts: Number(process.env.LOGIN_MAX_ATTEMPTS ?? 10),
   loginLockoutMinutes: Number(process.env.LOGIN_LOCKOUT_MINUTES ?? 15),
 
-  hcaptchaSecret: process.env.HCAPTCHA_SECRET ?? "",
+  recaptchaSecret: process.env.RECAPTCHA_SECRET ?? "",
 
   passwordExpiryDays: Number(process.env.PASSWORD_EXPIRY_DAYS ?? 90),
   passwordHistoryCount: Number(process.env.PASSWORD_HISTORY_COUNT ?? 5),
