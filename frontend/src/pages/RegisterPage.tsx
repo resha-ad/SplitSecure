@@ -3,6 +3,8 @@ import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/client";
+import { Captcha } from "../components/Captcha";
+import { PasswordStrengthMeter } from "../components/PasswordStrengthMeter";
 
 export function RegisterPage() {
   const { register } = useAuth();
@@ -10,15 +12,22 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA.");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await register(email, password, displayName);
+      await register(email, password, displayName, captchaToken);
       navigate("/groups");
     } catch (err) {
       if (err instanceof ApiError) {
@@ -57,6 +66,10 @@ export function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
             <span className="hint">At least 12 characters, with upper/lowercase, a digit and a symbol.</span>
+            <PasswordStrengthMeter password={password} email={email} />
+          </div>
+          <div className="form-field">
+            <Captcha onToken={setCaptchaToken} />
           </div>
           <button type="submit" disabled={submitting}>
             {submitting ? "Creating account..." : "Create account"}
