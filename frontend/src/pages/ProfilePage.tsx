@@ -21,6 +21,8 @@ export function ProfilePage() {
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
   const [passwordChanging, setPasswordChanging] = useState(false);
 
+  const [dataMsg, setDataMsg] = useState<string | null>(null);
+
   if (!user) return null;
 
   async function onSaveProfile(e: FormEvent) {
@@ -53,6 +55,35 @@ export function ProfilePage() {
       }
     } finally {
       setPasswordChanging(false);
+    }
+  }
+
+  async function onExportData() {
+    setDataMsg(null);
+    const bundle = await usersApi.exportData();
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "splitsecure-export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function onImportFileSelected(e: FormEvent<HTMLInputElement>) {
+    const file = e.currentTarget.files?.[0];
+    if (!file) return;
+    setDataMsg(null);
+    try {
+      const text = await file.text();
+      const bundle = JSON.parse(text);
+      await usersApi.importData(bundle);
+      await refreshProfile();
+      setDataMsg("Import complete - your display name has been updated from the file.");
+    } catch {
+      setDataMsg("Could not import that file - check it's a SplitSecure export (or a valid JSON file with a profile.displayName field).");
+    } finally {
+      e.currentTarget.value = "";
     }
   }
 
@@ -127,6 +158,23 @@ export function ProfilePage() {
             Changing your password signs you out everywhere else, and can't reuse your last 5 passwords.
           </p>
         </form>
+      </div>
+
+      <div className="card">
+        <h2>Your data</h2>
+        {dataMsg && <p className="hint">{dataMsg}</p>}
+        <p className="hint">
+          Download everything SplitSecure holds about you - your profile, groups, expenses you're
+          involved in, and settlements. You can re-upload a previous export to restore your display
+          name (financial records are not re-imported, to protect ledger integrity).
+        </p>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <button className="secondary" onClick={onExportData}>Export my data</button>
+          <label className="secondary" style={{ display: "inline-block", padding: "9px 16px", borderRadius: 6, border: "1px solid var(--border)", cursor: "pointer" }}>
+            Import from file
+            <input type="file" accept="application/json" onChange={onImportFileSelected} style={{ display: "none" }} />
+          </label>
+        </div>
       </div>
 
       <div className="card">
