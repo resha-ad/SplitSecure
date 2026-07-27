@@ -12,13 +12,18 @@ import {
   verifyMfaTicket,
 } from "./tokens";
 import { AppError } from "../../middleware/errorHandler";
-import { RegisterInput } from "./auth.schema";
+import { RegisterInput, ChangePasswordInput } from "./auth.schema";
 import { recordAudit } from "../../utils/audit";
 
 const REFRESH_TOKEN_TTL_DAYS = 30;
 
 function userAgentHash(userAgent: string | undefined): string | undefined {
   return userAgent ? sha256Hex(userAgent) : undefined;
+}
+
+function isPasswordExpired(passwordChangedAt: Date): boolean {
+  const ageDays = (Date.now() - passwordChangedAt.getTime()) / 86_400_000;
+  return ageDays > env.passwordExpiryDays;
 }
 
 export async function registerUser(input: RegisterInput) {
@@ -102,7 +107,11 @@ export async function loginStepPassword(
   }
 
   await recordAudit({ userId: user.id, action: "auth.login_success", targetType: "User", targetId: user.id, ip });
-  return { mfaRequired: false as const, ...(await issueSession(user.id, userAgent)) };
+  return {
+    mfaRequired: false as const,
+    passwordExpired: isPasswordExpired(user.passwordChangedAt),
+    ...(await issueSession(user.id, userAgent)),
+  };
 }
 
 export async function loginStepTotp(
@@ -132,7 +141,7 @@ export async function loginStepTotp(
   }
 
   await recordAudit({ userId: user.id, action: "auth.login_success_mfa", targetType: "User", targetId: user.id, ip });
-  return issueSession(user.id, userAgent);
+  return { passwordExpired: isPasswordExpired(user.passwordChangedAt), ...(await issueSession(user.id, userAgent)) };
 }
 
 export async function issueSession(userId: string, userAgent: string | undefined) {
@@ -215,6 +224,64 @@ export async function confirmTotpSetup(userId: string, code: string) {
 
   await prisma.user.update({ where: { id: userId }, data: { totpEnabled: true } });
   await recordAudit({ userId, action: "auth.totp_enabled", targetType: "User", targetId: userId });
+}
+
+export async function changePassword(userId: string, input: ChangePasswordInput) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+  const currentValid = await verifyPassword(user.passwordHash, input.currentPassword);
+  if (!currentValid) {
+    throw new AppError(401, "current_password_incorrect");
+  }
+
+  if (input.newPassword.toLowerCase().includes(user.email.split("@")[0].toLowerCase())) {
+    throw new AppError(400, "password_must_not_contain_email");
+  }
+
+  // Reuse prevention: check the new password against the current hash and
+  // the last N historical ones. Each comparison is a real Argon2 verify
+  // (hashes are salted, so this can't be a simple string-equality check).
+  const recentHashes = await prisma.passwordHistory.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: env.passwordHistoryCount,
+    select: { passwordHash: true },
+  });
+  const candidateHashes = [user.passwordHash, ...recentHashes.map((h) => h.passwordHash)];
+  for (const oldHash of candidateHashes) {
+    if (await verifyPassword(oldHash, input.newPassword)) {
+      throw new AppError(400, "password_recently_used");
+    }
+  }
+
+  const newHash = await hashPassword(input.newPassword);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.passwordHistory.create({ data: { userId, passwordHash: user.passwordHash } });
+    await tx.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash, passwordChangedAt: new Date() },
+    });
+
+    // Trim history down to the configured retention count.
+    const toKeep = await tx.passwordHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: env.passwordHistoryCount,
+      select: { id: true },
+    });
+    await tx.passwordHistory.deleteMany({
+      where: { userId, id: { notIn: toKeep.map((h) => h.id) } },
+    });
+
+    // A password change is a strong enough signal to end every other
+    // session, not just this one - if the change was prompted by a
+    // suspected compromise, an attacker's existing session shouldn't
+    // survive it.
+    await tx.refreshToken.updateMany({ where: { userId }, data: { revoked: true } });
+  });
+
+  await recordAudit({ userId, action: "auth.password_changed", targetType: "User", targetId: userId });
 }
 
 export async function findOrCreateGoogleUser(googleId: string, email: string, displayName: string) {
