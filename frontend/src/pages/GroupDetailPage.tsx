@@ -11,6 +11,15 @@ function formatMoney(cents: number, currency = "GBP") {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(cents / 100);
 }
 
+function initials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
 export function GroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const { user } = useAuth();
@@ -36,7 +45,13 @@ export function GroupDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
 
-  if (!group || !groupId) return <div className="app-shell">Loading...</div>;
+  if (!group || !groupId) {
+    return (
+      <div className="app-shell">
+        <p className="hint"><span className="spinner" aria-hidden="true" /> Loading group...</p>
+      </div>
+    );
+  }
 
   const isAdmin = group.members.find((m) => m.userId === user?.id)?.role === "ADMIN";
 
@@ -137,13 +152,16 @@ function ExpensesTab({
         {expenses.length === 0 && <p className="hint">No expenses logged yet.</p>}
         {expenses.map((exp) => (
           <div key={exp.id} className="expense-row">
-            <div>
-              {/* was dangerouslySetInnerHTML, allowing stored XSS via the
-                  description field. React's default text-node rendering
-                  escapes it - no sanitizer needed since rich text was
-                  never a real requirement here. */}
-              <div>{exp.description}</div>
-              <span className="hint">Paid by {exp.paidBy.displayName}</span>
+            <div className="entity-row">
+              <span className="avatar" aria-hidden="true">{initials(exp.paidBy.displayName)}</span>
+              <div>
+                {/* was dangerouslySetInnerHTML, allowing stored XSS via the
+                    description field. React's default text-node rendering
+                    escapes it - no sanitizer needed since rich text was
+                    never a real requirement here. */}
+                <div>{exp.description}</div>
+                <span className="hint">Paid by {exp.paidBy.displayName}</span>
+              </div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div>{formatMoney(exp.amountCents, exp.currency)}</div>
@@ -197,7 +215,10 @@ function BalancesTab({
           const bal = balances[m.userId] ?? 0;
           return (
             <div key={m.userId} className="member-row">
-              <span>{m.user.displayName}</span>
+              <span className="entity-row">
+                <span className="avatar" aria-hidden="true">{initials(m.user.displayName)}</span>
+                {m.user.displayName}
+              </span>
               <span className={bal >= 0 ? "balance-positive" : "balance-negative"}>
                 {bal >= 0 ? "is owed " : "owes "} {formatMoney(Math.abs(bal))}
               </span>
@@ -274,7 +295,10 @@ function MembersTab({
       <h2>Members</h2>
       {group.members.map((m) => (
         <div key={m.userId} className="member-row">
-          <span>{m.user.displayName} <span className="hint">({m.user.email})</span></span>
+          <span className="entity-row">
+            <span className="avatar" aria-hidden="true">{initials(m.user.displayName)}</span>
+            {m.user.displayName} <span className="hint">({m.user.email})</span>
+          </span>
           {isAdmin ? (
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <select value={m.role} onChange={(e) => onRoleChange(m.userId, e.target.value as "ADMIN" | "MEMBER")}>
