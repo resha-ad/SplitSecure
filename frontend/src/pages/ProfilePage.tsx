@@ -5,8 +5,10 @@ import { useAuth } from "../auth/AuthContext";
 import { authApi, usersApi } from "../api/endpoints";
 import { setAccessToken, ApiError } from "../api/client";
 import { PasswordStrengthMeter } from "../components/PasswordStrengthMeter";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function ProfilePage() {
+  useDocumentTitle("Profile");
   const { user, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");

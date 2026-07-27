@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { groupsApi, expensesApi, settlementsApi } from "../api/endpoints";
 import { useAuth } from "../auth/AuthContext";
 import type { BalancesResponse, Expense, Group } from "../api/types";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 type Tab = "expenses" | "balances" | "members";
 
@@ -25,6 +26,7 @@ export function GroupDetailPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("expenses");
   const [group, setGroup] = useState<Group | null>(null);
+  useDocumentTitle(group?.name ?? "Group");
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [balances, setBalances] = useState<BalancesResponse>({});
 

@@ -3,8 +3,10 @@ import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { groupsApi } from "../api/endpoints";
 import type { Group } from "../api/types";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function GroupsPage() {
+  useDocumentTitle("Your groups");
   const [groups, setGroups] = useState<Group[]>([]);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);

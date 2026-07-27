@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function TotpVerifyPage() {
+  useDocumentTitle("Verify code");
   const { loginTotp } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

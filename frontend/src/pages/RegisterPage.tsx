@@ -5,8 +5,10 @@ import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/client";
 import { Captcha } from "../components/Captcha";
 import { PasswordStrengthMeter } from "../components/PasswordStrengthMeter";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function RegisterPage() {
+  useDocumentTitle("Create account");
   const { register } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");

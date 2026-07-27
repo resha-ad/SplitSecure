@@ -4,10 +4,12 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/client";
 import { Captcha } from "../components/Captcha";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 export function LoginPage() {
+  useDocumentTitle("Sign in");
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
