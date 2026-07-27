@@ -55,3 +55,14 @@ export type TotpVerifyInput = z.infer<typeof totpVerifySchema>;
 export const totpSetupConfirmSchema = z.object({
   code: z.string().regex(/^\d{6}$/, "TOTP code must be 6 digits"),
 });
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128),
+    newPassword: passwordSchema,
+  })
+  .refine((data) => data.currentPassword !== data.newPassword, {
+    message: "New password must be different from your current password",
+    path: ["newPassword"],
+  });
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
