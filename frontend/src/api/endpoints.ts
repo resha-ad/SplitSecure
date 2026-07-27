@@ -5,6 +5,7 @@ interface LoginResult {
   mfaRequired: boolean;
   mfaTicket?: string;
   accessToken?: string;
+  passwordExpired?: boolean;
 }
 
 export const authApi = {
@@ -21,7 +22,7 @@ export const authApi = {
     }),
 
   loginTotp: (mfaTicket: string, code: string) =>
-    apiFetch<{ accessToken: string }>("/api/auth/login/totp", {
+    apiFetch<{ accessToken: string; passwordExpired?: boolean }>("/api/auth/login/totp", {
       method: "POST",
       body: JSON.stringify({ mfaTicket, code }),
     }),
@@ -31,6 +32,11 @@ export const authApi = {
   totpSetup: () => apiFetch<{ qrDataUrl: string }>("/api/auth/totp/setup", { method: "POST" }),
   totpConfirm: (code: string) =>
     apiFetch<void>("/api/auth/totp/confirm", { method: "POST", body: JSON.stringify({ code }) }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiFetch<void>("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 };
 
 export const usersApi = {
