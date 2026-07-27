@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
+import { PasswordExpiredBanner } from "./components/PasswordExpiredBanner";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -13,6 +14,7 @@ function App() {
   return (
     <>
       <Navbar />
+      <PasswordExpiredBanner />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/login/totp" element={<TotpVerifyPage />} />
