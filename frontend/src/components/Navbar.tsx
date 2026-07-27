@@ -9,7 +9,10 @@ export function Navbar() {
 
   return (
     <nav className="navbar">
-      <Link to="/groups">SplitSecure</Link>
+      <Link to="/groups" className="brand">
+        <span className="brand-mark" aria-hidden="true">S</span>
+        SplitSecure
+      </Link>
       <div className="links">
         <Link to="/groups">Groups</Link>
         <Link to="/profile">{user.displayName}</Link>
