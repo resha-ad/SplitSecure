@@ -62,7 +62,21 @@ export async function settleUp(
       return await prisma.$transaction(
         async (tx) => {
           const existing = await tx.settlement.findUnique({ where: { idempotencyKey } });
-          if (existing) return existing; // idempotent replay, not a new settlement
+          if (existing) {
+            // Idempotent replay is only valid if it's a replay of *this
+            // exact* request - a key collision (bug or otherwise) with
+            // different parameters must not silently hand back someone
+            // else's settlement under a matching key.
+            const matches =
+              existing.groupId === groupId &&
+              existing.fromUserId === actingUserId &&
+              existing.toUserId === toUserId &&
+              existing.amountCents === amountCents;
+            if (!matches) {
+              throw new AppError(409, "idempotency_key_reused_with_different_parameters");
+            }
+            return existing;
+          }
 
           // Recomputing the balance *inside* the serializable transaction -
           // rather than trusting a value read before the transaction began -
@@ -74,12 +88,26 @@ export async function settleUp(
           // succeed against a balance that was only true at read time.
           const balances = await computeBalances(groupId, tx);
           const outstanding = balances.get(actingUserId) ?? 0;
+          const recipientBalance = balances.get(toUserId) ?? 0;
 
           if (outstanding >= 0) {
             throw new AppError(400, "no_outstanding_balance_to_settle");
           }
           if (amountCents > -outstanding) {
             throw new AppError(400, "amount_exceeds_outstanding_balance");
+          }
+          // Without this check, a payer could "settle" with any group
+          // member regardless of whether that member is actually owed
+          // anything - silently pushing the recipient's own balance into
+          // artificial debt. Settling only ever makes sense towards
+          // someone who is currently owed money, and never for more than
+          // they're owed (otherwise the same artificial-debt problem
+          // happens in the other direction).
+          if (recipientBalance <= 0) {
+            throw new AppError(400, "recipient_is_not_owed_money");
+          }
+          if (amountCents > recipientBalance) {
+            throw new AppError(400, "amount_exceeds_recipient_owed_balance");
           }
 
           const settlement = await tx.settlement.create({

@@ -103,4 +103,114 @@ describe("settlements.service (integration)", () => {
     const balances = await listBalances(group.id);
     expect(balances[ower.id]).toBe(0); // not -2000 (i.e. not double-counted)
   });
+
+  it("rejects settling with a member who isn't owed anything", async () => {
+    const payer = await makeUser(`payer3-${Date.now()}@test.local`);
+    const ower = await makeUser(`ower3-${Date.now()}@test.local`);
+    const bystander = await makeUser(`bystander-${Date.now()}@test.local`);
+    const group = await prisma.group.create({
+      data: {
+        name: "Bystander Test Group",
+        members: {
+          create: [
+            { userId: payer.id, role: "ADMIN" },
+            { userId: ower.id, role: "MEMBER" },
+            { userId: bystander.id, role: "MEMBER" },
+          ],
+        },
+      },
+    });
+    // Bystander is not part of this expense at all - their balance stays 0.
+    await prisma.expense.create({
+      data: {
+        groupId: group.id,
+        paidById: payer.id,
+        description: "Two-person expense",
+        amountCents: 4000,
+        splits: { create: [{ userId: payer.id, shareCents: 2000 }, { userId: ower.id, shareCents: 2000 }] },
+      },
+    });
+
+    await expect(
+      settleUp(ower.id, group.id, bystander.id, 2000, `${group.id}-bystander`)
+    ).rejects.toBeInstanceOf(AppError);
+  });
+
+  it("rejects overpaying a specific creditor beyond what they're individually owed", async () => {
+    // A owes money to two separate creditors (B and C) via two expenses.
+    // A's *total* debt covers what's owed to both combined, but trying to
+    // pay the whole thing to just one of them must fail - otherwise A
+    // could mark themselves "settled" while the other creditor is never
+    // actually paid.
+    const a = await makeUser(`a2-${Date.now()}@test.local`);
+    const b = await makeUser(`b2-${Date.now()}@test.local`);
+    const c = await makeUser(`c2-${Date.now()}@test.local`);
+    const group = await prisma.group.create({
+      data: {
+        name: "Multi Creditor Group",
+        members: { create: [{ userId: a.id, role: "ADMIN" }, { userId: b.id, role: "MEMBER" }, { userId: c.id, role: "MEMBER" }] },
+      },
+    });
+
+    await prisma.expense.create({
+      data: {
+        groupId: group.id,
+        paidById: b.id,
+        description: "B pays, split with A",
+        amountCents: 2500,
+        splits: { create: [{ userId: b.id, shareCents: 1250 }, { userId: a.id, shareCents: 1250 }] },
+      },
+    });
+    await prisma.expense.create({
+      data: {
+        groupId: group.id,
+        paidById: c.id,
+        description: "C pays, split with A",
+        amountCents: 2500,
+        splits: { create: [{ userId: c.id, shareCents: 1250 }, { userId: a.id, shareCents: 1250 }] },
+      },
+    });
+
+    const balances = await listBalances(group.id);
+    expect(balances[a.id]).toBe(-2500); // A owes 2500 in total, across two people
+    expect(balances[b.id]).toBe(1250); // B is only owed 1250 individually
+    expect(balances[c.id]).toBe(1250); // C is only owed 1250 individually
+
+    // A tries to pay their *entire* debt to B alone - must be rejected,
+    // since B is only actually owed 1250, not 2500.
+    await expect(settleUp(a.id, group.id, b.id, 2500, `${group.id}-overpay`)).rejects.toBeInstanceOf(AppError);
+
+    // Paying B exactly what B is owed still works correctly.
+    await settleUp(a.id, group.id, b.id, 1250, `${group.id}-correct-amount`);
+    const balancesAfter = await listBalances(group.id);
+    expect(balancesAfter[b.id]).toBe(0);
+    expect(balancesAfter[a.id]).toBe(-1250); // still owes C
+  });
+
+  it("rejects a replayed idempotency key whose parameters don't match the original", async () => {
+    const payer = await makeUser(`payer4-${Date.now()}@test.local`);
+    const ower = await makeUser(`ower4-${Date.now()}@test.local`);
+    const group = await prisma.group.create({
+      data: {
+        name: "Idempotency Mismatch Group",
+        members: { create: [{ userId: payer.id, role: "ADMIN" }, { userId: ower.id, role: "MEMBER" }] },
+      },
+    });
+    await prisma.expense.create({
+      data: {
+        groupId: group.id,
+        paidById: payer.id,
+        description: "Idempotency mismatch expense",
+        amountCents: 4000,
+        splits: { create: [{ userId: payer.id, shareCents: 2000 }, { userId: ower.id, shareCents: 2000 }] },
+      },
+    });
+
+    const key = `${group.id}-mismatch`;
+    await settleUp(ower.id, group.id, payer.id, 1000, key);
+
+    // Same key, different amount - must not silently return the first
+    // settlement as if it were a valid replay of this different request.
+    await expect(settleUp(ower.id, group.id, payer.id, 2000, key)).rejects.toBeInstanceOf(AppError);
+  });
 });
