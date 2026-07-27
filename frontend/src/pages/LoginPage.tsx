@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/client";
 import { Captcha } from "../components/Captcha";
@@ -10,6 +10,8 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const passwordChanged = Boolean((location.state as { passwordChanged?: boolean } | null)?.passwordChanged);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -48,6 +50,11 @@ export function LoginPage() {
     <div className="app-shell" style={{ maxWidth: 420, marginTop: 60 }}>
       <h1>Sign in</h1>
       <div className="card">
+        {passwordChanged && !error && (
+          <div className="hint" style={{ marginBottom: 10, color: "var(--success)" }}>
+            Password changed. Please sign in again.
+          </div>
+        )}
         {error && <div className="error-banner">{error}</div>}
         <form onSubmit={onSubmit}>
           <div className="form-field">
