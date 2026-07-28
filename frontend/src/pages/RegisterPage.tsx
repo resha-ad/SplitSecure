@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/client";
 import { Captcha } from "../components/Captcha";
 import { PasswordStrengthMeter } from "../components/PasswordStrengthMeter";
+import { AuthIntroPanel } from "../components/AuthIntroPanel";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function RegisterPage() {
@@ -45,42 +46,44 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="auth-shell">
-      <span className="brand-mark" aria-hidden="true" style={{ marginBottom: 12 }}>S</span>
-      <h1>Create account</h1>
-      <div className="card">
-        {error && <div className="error-banner">{error}</div>}
-        <form onSubmit={onSubmit}>
-          <div className="form-field">
-            <label htmlFor="displayName">Display name</label>
-            <input id="displayName" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          </div>
-          <div className="form-field">
-            <label htmlFor="email">Email</label>
-            <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="form-field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <span className="hint">At least 12 characters, with upper/lowercase, a digit and a symbol.</span>
-            <PasswordStrengthMeter password={password} email={email} />
-          </div>
-          <div className="form-field">
-            <Captcha onToken={setCaptchaToken} />
-          </div>
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Creating account..." : "Create account"}
-          </button>
-        </form>
-        <p className="hint" style={{ marginTop: 14 }}>
-          Already have an account? <Link to="/login">Sign in</Link>
-        </p>
+    <div className="split-auth">
+      <AuthIntroPanel heading="Create your account" tagline="Group expenses, settled fairly and securely - built for people who actually check the maths." />
+      <div className="form-panel">
+        <div className="auth-form-inner">
+          <h2 style={{ fontSize: 22, marginBottom: 18 }}>Create your account</h2>
+          {error && <div className="error-banner">{error}</div>}
+          <form onSubmit={onSubmit}>
+            <div className="form-field">
+              <label htmlFor="displayName">Display name</label>
+              <input id="displayName" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label htmlFor="email">Email</label>
+              <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <span className="hint">At least 12 characters, with upper/lowercase, a digit and a symbol.</span>
+              <PasswordStrengthMeter password={password} email={email} />
+            </div>
+            <div className="form-field">
+              <Captcha onToken={setCaptchaToken} />
+            </div>
+            <button type="submit" disabled={submitting} style={{ width: "100%" }}>
+              {submitting ? "Creating account..." : "Create account"}
+            </button>
+          </form>
+          <p className="hint" style={{ marginTop: 14 }}>
+            Already have an account? <Link to="/login">Sign in</Link>
+          </p>
+        </div>
       </div>
     </div>
   );

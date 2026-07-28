@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { ApiError } from "../api/client";
 import { Captcha } from "../components/Captcha";
+import { AuthIntroPanel } from "../components/AuthIntroPanel";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
@@ -49,44 +50,46 @@ export function LoginPage() {
   }
 
   return (
-    <div className="auth-shell">
-      <span className="brand-mark" aria-hidden="true" style={{ marginBottom: 12 }}>S</span>
-      <h1>Sign in</h1>
-      <div className="card">
-        {passwordChanged && !error && <div className="success-banner">Password changed. Please sign in again.</div>}
-        {error && <div className="error-banner">{error}</div>}
-        <form onSubmit={onSubmit}>
-          <div className="form-field">
-            <label htmlFor="email">Email</label>
-            <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="form-field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <div className="form-field">
-            <Captcha onToken={setCaptchaToken} />
-          </div>
-          <button type="submit" disabled={submitting}>
-            {submitting ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-        <div style={{ marginTop: 14 }}>
-          <a href={`${API_URL}/api/auth/google`}>
-            <button type="button" className="secondary" style={{ width: "100%" }}>
-              Continue with Google
+    <div className="split-auth">
+      <AuthIntroPanel heading="Welcome back" tagline="Split expenses with the people you trust, without trusting the app blindly." />
+      <div className="form-panel">
+        <div className="auth-form-inner">
+          <h2 style={{ fontSize: 22, marginBottom: 18 }}>Sign in to your account</h2>
+          {passwordChanged && !error && <div className="success-banner">Password changed. Please sign in again.</div>}
+          {error && <div className="error-banner">{error}</div>}
+          <form onSubmit={onSubmit}>
+            <div className="form-field">
+              <label htmlFor="email">Email</label>
+              <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <div className="form-field">
+              <Captcha onToken={setCaptchaToken} />
+            </div>
+            <button type="submit" disabled={submitting} style={{ width: "100%" }}>
+              {submitting ? "Signing in..." : "Sign in"}
             </button>
-          </a>
+          </form>
+          <div style={{ marginTop: 14 }}>
+            <a href={`${API_URL}/api/auth/google`}>
+              <button type="button" className="secondary" style={{ width: "100%" }}>
+                Continue with Google
+              </button>
+            </a>
+          </div>
+          <p className="hint" style={{ marginTop: 14 }}>
+            No account? <Link to="/register">Register</Link>
+          </p>
         </div>
-        <p className="hint" style={{ marginTop: 14 }}>
-          No account? <Link to="/register">Register</Link>
-        </p>
       </div>
     </div>
   );
