@@ -52,7 +52,15 @@ describe("MFA lifecycle (integration)", () => {
     expect(passwordStep.mfaRequired).toBe(true);
     if (!passwordStep.mfaRequired) throw new Error("expected mfaRequired");
 
+    // Replay protection (VULN-06 fix) means the exact code just used to
+    // confirm setup can't authenticate again - advance one real time-step
+    // to get a genuinely new code, the same as a user logging in some
+    // time after setting up their authenticator app.
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(Date.now() + 30_000);
     const loginCode = authenticator.generate(secret);
+    jest.useRealTimers();
+
     const session = await loginStepTotp(passwordStep.mfaTicket, loginCode, "jest", "127.0.0.1");
     expect(session.accessToken).toBeTruthy();
     expect(session.refreshToken).toBeTruthy();
