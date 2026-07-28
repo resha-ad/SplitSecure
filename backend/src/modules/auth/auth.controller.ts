@@ -102,3 +102,9 @@ export async function changePassword(req: Request, res: Response) {
   clearRefreshCookie(res);
   res.status(204).send();
 }
+
+export async function logoutAllDevices(req: Request, res: Response) {
+  await authService.revokeAllSessions(req.userId!);
+  clearRefreshCookie(res);
+  res.status(204).send();
+}

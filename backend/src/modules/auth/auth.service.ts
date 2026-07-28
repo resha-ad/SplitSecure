@@ -205,6 +205,11 @@ export async function revokeRefreshToken(presentedToken: string) {
   await prisma.refreshToken.updateMany({ where: { tokenHash: hash }, data: { revoked: true } });
 }
 
+export async function revokeAllSessions(userId: string) {
+  await prisma.refreshToken.updateMany({ where: { userId }, data: { revoked: true } });
+  await recordAudit({ userId, action: "auth.logout_all_devices", targetType: "User", targetId: userId });
+}
+
 export async function beginTotpSetup(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   const secret = generateTotpSecret();

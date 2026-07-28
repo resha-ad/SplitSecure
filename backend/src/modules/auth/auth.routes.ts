@@ -1,15 +1,13 @@
 import { Router } from "express";
 import { passport } from "../../config/passport";
 import { env } from "../../config/env";
-import { prisma } from "../../config/db";
 import { asyncHandler } from "../../middleware/asyncHandler";
 import { requireAuth } from "../../middleware/auth";
 import { authRateLimiter, sensitiveActionRateLimiter } from "../../middleware/rateLimiter";
-import { verifyCsrf } from "../../middleware/csrf";
+import { verifyCsrf, issueCsrfCookie } from "../../middleware/csrf";
 import * as controller from "./auth.controller";
 import * as authService from "./auth.service";
-import { setRefreshCookie, clearRefreshCookie } from "./cookies";
-import { issueCsrfCookie } from "../../middleware/csrf";
+import { setRefreshCookie } from "./cookies";
 
 export const authRouter = Router();
 
@@ -66,11 +64,15 @@ authRouter.get(
   })
 );
 
-authRouter.get("/logout-all-devices", requireAuth, verifyCsrf, asyncHandler(async (req, res) => {
-  // Revokes every refresh token belonging to the user - useful after a
-  // suspected compromise, exposed here as a distinct endpoint from the
-  // single-session logout above.
-  await prisma.refreshToken.updateMany({ where: { userId: req.userId! }, data: { revoked: true } });
-  clearRefreshCookie(res);
-  res.status(204).send();
-}));
+// VULN-08 fix: this was a GET route. verifyCsrf skips GET/HEAD/OPTIONS by
+// design (they're supposed to be side-effect-free per RFC 7231), so the
+// CSRF middleware was attached here but never actually executed its
+// check - a state-changing action (revoking every session) was reachable
+// cross-site with no CSRF token at all. The real fix is the HTTP method,
+// not just "having" the middleware present.
+authRouter.post(
+  "/logout-all-devices",
+  requireAuth,
+  verifyCsrf,
+  asyncHandler(controller.logoutAllDevices)
+);
