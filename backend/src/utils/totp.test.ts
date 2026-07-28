@@ -1,5 +1,5 @@
 import { authenticator } from "otplib";
-import { generateTotpSecret, verifyTotpCode, totpQrCodeDataUrl } from "./totp";
+import { generateTotpSecret, verifyTotpCode, verifyTotpCodeWithReplayProtection, totpQrCodeDataUrl } from "./totp";
 
 describe("totp", () => {
   it("generates a distinct secret each call", () => {
@@ -28,5 +28,33 @@ describe("totp", () => {
     const secret = generateTotpSecret();
     const dataUrl = await totpQrCodeDataUrl("alice@test.local", secret);
     expect(dataUrl.startsWith("data:image/png;base64,")).toBe(true);
+  });
+});
+
+describe("verifyTotpCodeWithReplayProtection", () => {
+  it("accepts a fresh code with no prior step recorded", () => {
+    const secret = generateTotpSecret();
+    const code = authenticator.generate(secret);
+    const result = verifyTotpCodeWithReplayProtection(secret, code, null);
+    expect(result.valid).toBe(true);
+    expect(result.step).not.toBeNull();
+  });
+
+  it("rejects a code matching a step at or before the last used step", () => {
+    const secret = generateTotpSecret();
+    const code = authenticator.generate(secret);
+    const first = verifyTotpCodeWithReplayProtection(secret, code, null);
+    expect(first.valid).toBe(true);
+
+    // Replaying the exact same code - simulating an attacker who captured
+    // it - must be rejected even though the code itself is still within
+    // otplib's own validity window.
+    const replay = verifyTotpCodeWithReplayProtection(secret, code, first.step);
+    expect(replay.valid).toBe(false);
+  });
+
+  it("rejects invalid codes without throwing", () => {
+    const secret = generateTotpSecret();
+    expect(verifyTotpCodeWithReplayProtection(secret, "000000", null).valid).toBe(false);
   });
 });
