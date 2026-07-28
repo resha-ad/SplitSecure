@@ -60,6 +60,10 @@ services:
       context: ./frontend
       args:
         VITE_API_URL: http://localhost:4000
+        # Reads from a root-level .env file (gitignored, compose loads it
+        # automatically) if present, otherwise falls back to Google's
+        # published test key - see frontend/.env for the real value.
+        VITE_RECAPTCHA_SITEKEY: ${VITE_RECAPTCHA_SITEKEY:-6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI}
     restart: unless-stopped
     depends_on:
       backend:
