@@ -1,24 +1,27 @@
 :root {
-  --text: #3f3d45;
-  --text-h: #0f0e13;
-  --text-dim: #6b6873;
-  --bg: #f6f5f8;
+  /* Softer, more formal palette - a muted steel blue instead of a vivid
+     purple, warm-neutral greys instead of stark black/white, and less
+     saturated status colors so errors/success don't feel alarming. */
+  --text: #3d4148;
+  --text-h: #1b1e24;
+  --text-dim: #6b7280;
+  --bg: #f6f7f9;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --border: #e3e2e6;
-  --border-strong: #cfcdd4;
-  --accent: #6d28d9;
-  --accent-hover: #5b21b6;
-  --accent-soft: #f1ebfe;
-  --danger: #b91c1c;
-  --danger-bg: #fee2e2;
-  --success: #15803d;
-  --success-bg: #dcfce7;
-  --warning: #b45309;
-  --warning-bg: #fef3c7;
-  --shadow-sm: 0 1px 2px rgba(20, 15, 30, 0.06);
-  --shadow-md: 0 4px 16px rgba(20, 15, 30, 0.08);
-  --radius: 10px;
+  --border: #e4e6ea;
+  --border-strong: #ccd0d8;
+  --accent: #3f6a8c;
+  --accent-hover: #325775;
+  --accent-soft: #e9f0f6;
+  --danger: #b3564f;
+  --danger-bg: #fbeceb;
+  --success: #3f8f5f;
+  --success-bg: #e9f5ee;
+  --warning: #b3872f;
+  --warning-bg: #faf1e0;
+  --shadow-sm: 0 1px 2px rgba(30, 35, 45, 0.05);
+  --shadow-md: 0 4px 18px rgba(30, 35, 45, 0.08);
+  --radius: 12px;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
   color-scheme: light dark;
   color: var(--text);
@@ -27,23 +30,23 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #d1d0d6;
-    --text-h: #f5f4f8;
-    --text-dim: #9c99a5;
-    --bg: #0e0e11;
-    --surface: #18181c;
-    --surface-raised: #1e1e23;
-    --border: #2c2b31;
-    --border-strong: #3c3b42;
-    --accent: #a78bfa;
-    --accent-hover: #c4b5fd;
-    --accent-soft: #241c3a;
-    --danger: #f87171;
-    --danger-bg: #3a1616;
-    --success: #4ade80;
-    --success-bg: #0f2c1a;
-    --warning: #fbbf24;
-    --warning-bg: #33260a;
+    --text: #c9cdd4;
+    --text-h: #f0f1f4;
+    --text-dim: #8b909a;
+    --bg: #15171b;
+    --surface: #1c1f24;
+    --surface-raised: #23262c;
+    --border: #2c2f36;
+    --border-strong: #3b3f47;
+    --accent: #7ba2c4;
+    --accent-hover: #97b8d6;
+    --accent-soft: #1f2b35;
+    --danger: #d99089;
+    --danger-bg: #322020;
+    --success: #83c29d;
+    --success-bg: #1c2c22;
+    --warning: #d6b06c;
+    --warning-bg: #2f2717;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
@@ -365,6 +368,92 @@ button:disabled {
 
 .auth-shell .card {
   text-align: left;
+}
+
+.split-auth {
+  display: flex;
+  min-height: 100vh;
+}
+
+.split-auth .intro-panel {
+  flex: 1 1 45%;
+  background: linear-gradient(160deg, var(--accent), var(--accent-hover));
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px;
+}
+
+.split-auth .intro-panel .brand-mark {
+  background: rgba(255, 255, 255, 0.18);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 20px;
+}
+
+.split-auth .intro-panel h1 {
+  color: white;
+  font-size: 32px;
+  margin: 22px 0 12px;
+}
+
+.split-auth .intro-panel p {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 380px;
+  margin: 0;
+}
+
+.split-auth .intro-panel ul {
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.split-auth .intro-panel li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.split-auth .form-panel {
+  flex: 1 1 55%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: var(--bg);
+}
+
+.split-auth .form-panel .auth-form-inner {
+  width: 100%;
+  max-width: 380px;
+}
+
+@media (max-width: 860px) {
+  .split-auth {
+    flex-direction: column;
+    min-height: auto;
+  }
+  .split-auth .intro-panel {
+    padding: 36px 24px;
+    flex: none;
+  }
+  .split-auth .intro-panel ul {
+    display: none;
+  }
+  .split-auth .form-panel {
+    flex: none;
+    padding: 30px 20px 50px;
+  }
 }
 
 .clickable-card {
