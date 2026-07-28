@@ -80,6 +80,24 @@ export function GroupDetailPage() {
   );
 }
 
+const MIN_EXPENSE_AMOUNT_NPR = 10;
+
+type SplitMethod = "equal" | "percentage" | "exact";
+
+// Rounding a percentage (or a set of decimal exact amounts) per-member
+// almost never sums back to exactly amountCents by chance - the backend
+// requires an exact match (money can't have fractional paisa), so any
+// leftover/shortfall from rounding is folded into the first member's
+// share rather than left as a silent discrepancy.
+function distributeRemainder(amountCents: number, raw: { userId: string; shareCents: number }[]) {
+  const sum = raw.reduce((total, r) => total + r.shareCents, 0);
+  const diff = amountCents - sum;
+  if (diff !== 0 && raw.length > 0) {
+    raw[0].shareCents += diff;
+  }
+  return raw;
+}
+
 function ExpensesTab({
   groupId,
   group,
@@ -93,21 +111,76 @@ function ExpensesTab({
 }) {
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
+  const [splitMethod, setSplitMethod] = useState<SplitMethod>("equal");
   const [selected, setSelected] = useState<string[]>(group.members.map((m) => m.userId));
+  const [memberValues, setMemberValues] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  const included = group.members.filter((m) => selected.includes(m.userId));
+  const amountCents = Math.round((parseFloat(amount) || 0) * 100);
+
+  const percentageTotal = included.reduce((sum, m) => sum + (parseFloat(memberValues[m.userId]) || 0), 0);
+  const exactTotalCents = included.reduce((sum, m) => sum + Math.round((parseFloat(memberValues[m.userId]) || 0) * 100), 0);
+
+  function toggleMember(userId: string, checked: boolean) {
+    setSelected((prev) => (checked ? [...prev, userId] : prev.filter((id) => id !== userId)));
+  }
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
-    const amountCents = Math.round(parseFloat(amount) * 100);
-    if (!description.trim() || !amountCents || selected.length === 0) return;
+    setError(null);
 
-    const base = Math.floor(amountCents / selected.length);
-    const remainder = amountCents - base * selected.length;
-    const splits = selected.map((userId, i) => ({ userId, shareCents: base + (i < remainder ? 1 : 0) }));
+    if (!description.trim()) {
+      setError("Please enter a description.");
+      return;
+    }
+    if (!amount || amountCents < MIN_EXPENSE_AMOUNT_NPR * 100) {
+      setError(`Amount must be at least NPR ${MIN_EXPENSE_AMOUNT_NPR.toFixed(2)}.`);
+      return;
+    }
+    if (included.length === 0) {
+      setError("Select at least one member to split this expense with.");
+      return;
+    }
 
-    await expensesApi.create(groupId, { description: description.trim(), amountCents, currency: "NPR", splits });
-    setDescription("");
-    setAmount("");
-    await onChanged();
+    let splits: { userId: string; shareCents: number }[];
+
+    if (splitMethod === "equal") {
+      const base = Math.floor(amountCents / included.length);
+      const remainder = amountCents - base * included.length;
+      splits = included.map((m, i) => ({ userId: m.userId, shareCents: base + (i < remainder ? 1 : 0) }));
+    } else if (splitMethod === "percentage") {
+      if (Math.round(percentageTotal * 100) !== 10000) {
+        setError(`Percentages must add up to 100% - currently ${percentageTotal.toFixed(1)}%.`);
+        return;
+      }
+      splits = distributeRemainder(
+        amountCents,
+        included.map((m) => ({
+          userId: m.userId,
+          shareCents: Math.round((amountCents * (parseFloat(memberValues[m.userId]) || 0)) / 100),
+        }))
+      );
+    } else {
+      if (exactTotalCents !== amountCents) {
+        setError(`Exact amounts must add up to ${formatMoney(amountCents)} - currently ${formatMoney(exactTotalCents)}.`);
+        return;
+      }
+      splits = included.map((m) => ({
+        userId: m.userId,
+        shareCents: Math.round((parseFloat(memberValues[m.userId]) || 0) * 100),
+      }));
+    }
+
+    try {
+      await expensesApi.create(groupId, { description: description.trim(), amountCents, currency: "NPR", splits });
+      setDescription("");
+      setAmount("");
+      setMemberValues({});
+      await onChanged();
+    } catch {
+      setError("Could not add that expense - please check the details and try again.");
+    }
   }
 
   async function onDelete(expenseId: string) {
@@ -119,6 +192,7 @@ function ExpensesTab({
     <>
       <div className="card">
         <h2>Add an expense</h2>
+        {error && <div className="error-banner">{error}</div>}
         <form onSubmit={onCreate}>
           <div className="form-field">
             <label htmlFor="description">Description</label>
@@ -126,25 +200,71 @@ function ExpensesTab({
           </div>
           <div className="form-field">
             <label htmlFor="amount">Amount (NPR)</label>
-            <input id="amount" type="number" step="0.01" min="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <input
+              id="amount"
+              type="number"
+              step="0.01"
+              min={MIN_EXPENSE_AMOUNT_NPR}
+              required
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+            <span className="hint">Minimum NPR {MIN_EXPENSE_AMOUNT_NPR.toFixed(2)}.</span>
           </div>
+
+          <div className="form-field">
+            <label>Split method</label>
+            <div style={{ display: "flex", gap: 14 }}>
+              {(["equal", "percentage", "exact"] as SplitMethod[]).map((methodOption) => (
+                <label key={methodOption} style={{ fontWeight: 400, display: "flex", alignItems: "center", gap: 5 }}>
+                  <input
+                    type="radio"
+                    name="splitMethod"
+                    checked={splitMethod === methodOption}
+                    onChange={() => setSplitMethod(methodOption)}
+                  />
+                  {methodOption === "equal" ? "Equally" : methodOption === "percentage" ? "By percentage" : "By exact amount"}
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="form-field">
             <label>Split between</label>
-            {group.members.map((m) => (
-              <label key={m.userId} style={{ fontWeight: 400, display: "block" }}>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(m.userId)}
-                  onChange={(e) =>
-                    setSelected((prev) =>
-                      e.target.checked ? [...prev, m.userId] : prev.filter((id) => id !== m.userId)
-                    )
-                  }
-                />{" "}
-                {m.user.displayName}
-              </label>
-            ))}
+            {group.members.map((m) => {
+              const isIncluded = selected.includes(m.userId);
+              return (
+                <div key={m.userId} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <label style={{ fontWeight: 400, display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                    <input type="checkbox" checked={isIncluded} onChange={(e) => toggleMember(m.userId, e.target.checked)} />
+                    {m.user.displayName}
+                  </label>
+                  {splitMethod !== "equal" && isIncluded && (
+                    <input
+                      type="number"
+                      step={splitMethod === "percentage" ? "1" : "0.01"}
+                      min="0"
+                      style={{ width: 90 }}
+                      placeholder={splitMethod === "percentage" ? "%" : "NPR"}
+                      value={memberValues[m.userId] ?? ""}
+                      onChange={(e) => setMemberValues((prev) => ({ ...prev, [m.userId]: e.target.value }))}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {splitMethod === "percentage" && (
+              <span className={Math.round(percentageTotal * 100) === 10000 ? "balance-positive" : "balance-negative"}>
+                Total: {percentageTotal.toFixed(1)}% (needs to be 100%)
+              </span>
+            )}
+            {splitMethod === "exact" && (
+              <span className={exactTotalCents === amountCents ? "balance-positive" : "balance-negative"}>
+                Total: {formatMoney(exactTotalCents)} (needs to be {formatMoney(amountCents)})
+              </span>
+            )}
           </div>
+
           <button type="submit">Add expense</button>
         </form>
       </div>
