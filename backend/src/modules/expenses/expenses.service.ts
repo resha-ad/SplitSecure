@@ -2,6 +2,7 @@ import { prisma } from "../../config/db";
 import { AppError } from "../../middleware/errorHandler";
 import { recordAudit } from "../../utils/audit";
 import { encryptBuffer, decryptBuffer } from "../../utils/crypto";
+import { sniffFileType } from "../../utils/fileSignature";
 import { CreateExpenseInput } from "./expenses.schema";
 
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
@@ -85,6 +86,15 @@ export async function attachReceipt(
   }
   if (!ALLOWED_RECEIPT_MIME.has(file.mimetype)) {
     throw new AppError(400, "unsupported_receipt_type");
+  }
+  // VULN-07 fix: file.mimetype is just the Content-Type header of the
+  // multipart part the *client* sent - entirely attacker-controlled, not
+  // verified against the bytes that follow it. Sniffing the actual file
+  // signature and requiring it to match closes the gap a spoofed header
+  // alone left open (e.g. HTML/JS content declared as image/png).
+  const actualType = sniffFileType(file.buffer);
+  if (actualType === null || actualType !== file.mimetype) {
+    throw new AppError(400, "file_content_does_not_match_declared_type");
   }
 
   const encrypted = encryptBuffer(file.buffer);
