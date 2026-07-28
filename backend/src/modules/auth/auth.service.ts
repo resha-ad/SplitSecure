@@ -3,7 +3,7 @@ import { prisma } from "../../config/db";
 import { env } from "../../config/env";
 import { hashPassword, verifyPassword } from "../../utils/password";
 import { encryptField, decryptField, sha256Hex } from "../../utils/crypto";
-import { generateTotpSecret, totpQrCodeDataUrl, verifyTotpCode } from "../../utils/totp";
+import { generateTotpSecret, totpQrCodeDataUrl, verifyTotpCodeWithReplayProtection } from "../../utils/totp";
 import {
   generateRefreshToken,
   hashRefreshToken,
@@ -140,12 +140,18 @@ export async function loginStepTotp(
   }
 
   const secret = decryptField(JSON.parse(user.totpSecretEnc));
-  const valid = verifyTotpCode(secret, code);
+  const { valid, step } = verifyTotpCodeWithReplayProtection(secret, code, user.totpLastStep);
 
   if (!valid) {
     await recordAudit({ userId: user.id, action: "auth.totp_failed", targetType: "User", targetId: user.id, ip });
     throw new AppError(401, "invalid_totp_code");
   }
+
+  // Recording the matched step is what actually prevents replay - a
+  // second submission of this same code will now match `step <=
+  // totpLastStep` and be rejected, even though the code itself is still
+  // technically within otplib's validity window.
+  await prisma.user.update({ where: { id: user.id }, data: { totpLastStep: step } });
 
   await recordAudit({ userId: user.id, action: "auth.login_success_mfa", targetType: "User", targetId: user.id, ip });
   return { passwordExpired: isPasswordExpired(user.passwordChangedAt), ...(await issueSession(user.id, userAgent)) };
@@ -225,11 +231,15 @@ export async function confirmTotpSetup(userId: string, code: string) {
   }
 
   const secret = decryptField(JSON.parse(user.totpSecretEnc));
-  if (!verifyTotpCode(secret, code)) {
+  const { valid, step } = verifyTotpCodeWithReplayProtection(secret, code, user.totpLastStep);
+  if (!valid) {
     throw new AppError(401, "invalid_totp_code");
   }
 
-  await prisma.user.update({ where: { id: userId }, data: { totpEnabled: true } });
+  // Recording the step here too, not just at login - otherwise the exact
+  // code just used to confirm setup would still be replayable as the
+  // first login code immediately afterwards.
+  await prisma.user.update({ where: { id: userId }, data: { totpEnabled: true, totpLastStep: step } });
   await recordAudit({ userId, action: "auth.totp_enabled", targetType: "User", targetId: userId });
 }
 
