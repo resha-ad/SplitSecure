@@ -9,3 +9,9 @@ process.env.JWT_ACCESS_SECRET ??= "test-access-secret-not-for-production-aaaaaaa
 process.env.JWT_REFRESH_SECRET ??= "test-refresh-secret-not-for-production-aaaaaaaaaaaaaaaaaaaaaaaaa";
 process.env.DATA_ENCRYPTION_KEK ??= Buffer.alloc(32, 7).toString("base64");
 process.env.CSRF_SECRET ??= "test-csrf-secret-not-for-production-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+// Force-cleared (not `??=`) - a real key may already be sitting in the
+// loaded .env for local dev, and tests need the "skip verification, no
+// live network call" dev-mode path in utils/captcha.ts, not an attempt to
+// verify against Google with no real token.
+process.env.RECAPTCHA_SECRET = "";
