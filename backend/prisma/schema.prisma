@@ -37,6 +37,11 @@ model User {
   displayName         String
   totpSecretEnc       String?
   totpEnabled         Boolean   @default(false)
+  // Time-step index of the last TOTP code that successfully authenticated
+  // this user - rejecting a code matching a step at or before this value
+  // is what actually stops a captured/observed code being replayed within
+  // its otherwise-valid window (RFC 6238 recommends exactly this).
+  totpLastStep        Int?
   googleId            String?   @unique
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
