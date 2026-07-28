@@ -10,6 +10,7 @@ export function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   async function load() {
     setGroups(await groupsApi.list());
@@ -22,10 +23,18 @@ export function GroupsPage() {
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
-    await groupsApi.create(name.trim());
-    setName("");
-    await load();
+    setError(null);
+    if (!name.trim()) {
+      setError("Please enter a group name.");
+      return;
+    }
+    try {
+      await groupsApi.create(name.trim());
+      setName("");
+      await load();
+    } catch {
+      setError("Could not create that group - please try again.");
+    }
   }
 
   return (
@@ -34,6 +43,7 @@ export function GroupsPage() {
 
       <div className="card">
         <h2>Create a group</h2>
+        {error && <div className="error-banner">{error}</div>}
         <form onSubmit={onCreate} style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
           <div className="form-field" style={{ flex: 1, marginBottom: 0 }}>
             <label htmlFor="groupName">Group name</label>
